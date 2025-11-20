@@ -22,6 +22,7 @@
     .result{margin-top:14px; padding:12px; border-radius:8px; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.03)}
     .success{color:var(--success); font-weight:700}
     .error{color:#ff6b6b; font-weight:700}
+    .resultado-final{margin-top:14px; padding:12px; border-radius:8px; font-size:18px; background:rgba(0,255,0,0.05); border:1px solid rgba(0,255,0,0.15); color:#4ade80; font-weight:700;}
     footer{margin-top:14px; font-size:12px; color:var(--muted)}
     .small{font-size:13px}
   </style>
@@ -45,6 +46,7 @@
       </div>
 
       <div id="status" class="result" style="display:none"></div>
+      <div id="resultadoBox" class="resultado-final" style="display:none"></div>
     </form>
 
     <footer>
@@ -59,6 +61,7 @@
       const submitBtn = document.getElementById('submitBtn');
       const exampleBtn = document.getElementById('exampleBtn');
       const statusBox = document.getElementById('status');
+      const resultadoBox = document.getElementById('resultadoBox');
 
       const WEBHOOK_URL = 'https://tk94.app.n8n.cloud/webhook/operacion';
 
@@ -73,8 +76,14 @@
         statusBox.className = 'result ' + (type === 'ok' ? 'success' : 'error');
       }
 
+      function showResultado(valor){
+        resultadoBox.style.display = 'block';
+        resultadoBox.textContent = "Resultado: " + valor;
+      }
+
       form.addEventListener('submit', async (ev) => {
         ev.preventDefault();
+        resultadoBox.style.display = "none"; 
         const oper = operInput.value.trim();
         if(!oper){
           showStatus('Escribe una operación válida antes de enviar.', 'error');
@@ -96,12 +105,22 @@
             body: JSON.stringify(payload)
           });
 
-          const text = await resp.text();
+          const rawText = await resp.text();
+          let parsed = null;
+
+          try { parsed = JSON.parse(rawText); } catch(e) {}
 
           if(resp.ok){
-            showStatus('<strong>Enviado correctamente.</strong><br/><pre style="white-space:pre-wrap;margin:8px 0;">' + escapeHtml(text) + '</pre>', 'ok');
+            showStatus('<strong>Enviado correctamente.</strong>', 'ok');
+
+            if(parsed && parsed.resultado !== undefined){
+              showResultado(parsed.resultado);
+            } else {
+              showResultado("No proporcionado por el servidor");
+            }
+
           } else {
-            showStatus('<strong>Error del servidor:</strong> ' + resp.status + ' ' + resp.statusText + '<br/><pre style="white-space:pre-wrap;margin:8px 0;">' + escapeHtml(text) + '</pre>', 'error');
+            showStatus('<strong>Error del servidor:</strong> ' + resp.status + ' ' + resp.statusText, 'error');
           }
         } catch (err){
           showStatus('<strong>Error de conexión:</strong> ' + err.message, 'error');
@@ -110,15 +129,6 @@
           submitBtn.textContent = 'Enviar';
         }
       });
-
-      function escapeHtml(str){
-        return String(str)
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')
-          .replace(/\"/g, '&quot;')
-          .replace(/\'/g, '&#39;');
-      }
     })();
   </script>
 </body>
